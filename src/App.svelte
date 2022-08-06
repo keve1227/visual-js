@@ -1,12 +1,25 @@
 <script lang="ts">
-    let userText: string;
+    import ContextMenu, { main } from "@/components/ContextMenu.svelte";
+    import Editor from "@/components/Editor.svelte";
+    import Node from "@/components/Node.svelte";
 </script>
 
-<h1>User input example</h1>
+<div class="app">
+    <Editor let:scale>
+        <Node title="Nice Shirt" {scale} />
+    </Editor>
 
-<label>
-    Enter your text here:
-    <input type="text" bind:value={userText} />
-</label>
+    <ContextMenu bind:contextMenu={$main} />
+</div>
 
-<p>{userText || ""}</p>
+<style lang="scss">
+    .app {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+
+        background-color: #031417;
+    }
+</style>
