@@ -45,5 +45,5 @@ export default {
 };
 
 document.addEventListener("pointerdown", (e) => set(e), { capture: true });
-document.addEventListener("pointermove", (e) => set(e), { capture: true });
-document.addEventListener("pointerup", (e) => unset(e), { capture: true });
+document.addEventListener("pointermove", (e) => set(e));
+document.addEventListener("pointerup", (e) => unset(e));

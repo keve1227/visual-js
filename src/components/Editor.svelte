@@ -1,3 +1,15 @@
+<script context="module" lang="ts">
+    export type ViewportMouseEvent =
+        | { viewportEvent?: false }
+        | {
+              viewportEvent: true;
+              editorX: number;
+              editorY: number;
+              viewportX: number;
+              viewportY: number;
+          };
+</script>
+
 <script lang="ts">
     import pointers from "@/lib/pointers";
 
@@ -103,9 +115,30 @@
     function wheel(e: WheelEvent) {
         zoom(-e.deltaY * zoomSpeed, e.clientX, e.clientY);
     }
+
+    function pointerEvent(e: PointerEvent & ViewportMouseEvent) {
+        const { editorX, editorY } = clientToEditorCoordinates(e.clientX, e.clientY);
+        const { viewportX, viewportY } = editorToViewportCoordinates(editorX, editorY);
+
+        Object.defineProperties(e, {
+            viewportEvent: { value: true },
+            editorX: { value: editorX },
+            editorY: { value: editorY },
+            viewportX: { value: viewportX },
+            viewportY: { value: viewportY },
+        });
+    }
 </script>
 
-<div bind:this={element} class="editor" on:pointerdown={pointerdown} on:wheel={wheel}>
+<div
+    bind:this={element}
+    class="editor"
+    on:pointerdown={pointerdown}
+    on:pointerdown|capture={pointerEvent}
+    on:pointermove|capture={pointerEvent}
+    on:pointerup|capture={pointerEvent}
+    on:wheel={wheel}
+>
     <div class="view" style:transform="scale({scale}) translate({x}px, {y}px)">
         <slot {scale} />
     </div>

@@ -5,8 +5,8 @@
 </script>
 
 <div class="app">
-    <Editor let:scale>
-        <Node title="Nice Shirt" {scale} />
+    <Editor>
+        <Node title="Nice Shirt" />
     </Editor>
 
     <ContextMenu bind:contextMenu={$main} />

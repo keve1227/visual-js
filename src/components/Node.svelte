@@ -4,6 +4,7 @@
 
     import { createEventDispatcher } from "svelte";
     import pointers from "@/lib/pointers";
+    import type { ViewportMouseEvent } from "./Editor.svelte";
 
     const emit = createEventDispatcher();
 
@@ -15,7 +16,6 @@
 
     export let x = 0;
     export let y = 0;
-    export let scale = 1;
 
     function toggle() {
         open = !open;
@@ -39,20 +39,24 @@
         emit("contextMenu", e, { cancelable: true });
     }
 
-    async function title_pointerdown(e: PointerEvent) {
+    async function title_pointerdown(e: PointerEvent & ViewportMouseEvent) {
+        if (!e.viewportEvent) return;
         if (e.pointerType === "mouse" && e.buttons !== 1) return;
 
-        let { clientX: _clientX, clientY: _clientY } = e;
+        let _viewportX: number = e.viewportX;
+        let _viewportY: number = e.viewportY;
 
         const pointer = await pointers.get(e.pointerId);
-        pointer?.subscribe(({ clientX, clientY }) => {
-            const deltaX = clientX - _clientX;
-            const deltaY = clientY - _clientY;
-            _clientX = clientX;
-            _clientY = clientY;
+        pointer?.subscribe((e: PointerEvent & ViewportMouseEvent) => {
+            if (!e.viewportEvent) return;
 
-            x += deltaX / scale;
-            y += deltaY / scale;
+            const deltaX = e.viewportX - _viewportX;
+            const deltaY = e.viewportY - _viewportY;
+            _viewportX = e.viewportX;
+            _viewportY = e.viewportY;
+
+            x += deltaX;
+            y += deltaY;
         });
     }
 </script>
