@@ -3,12 +3,16 @@
     import Editor from "@/components/Editor.svelte";
     import Node from "@/components/Node.svelte";
 
-    let frame = 0;
-    setInterval(() => {
-        frame++;
-    }, 16);
+    interface NodeDefinition {
+        index: number;
+        title: string;
+        color: string;
+        x: number;
+        y: number;
+        z: number;
+    }
 
-    const nodes: { title: string; color: string; x: number; y: number }[] = [];
+    let nodes: NodeDefinition[] = [];
 
     for (let i = 0; i < 100; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -16,16 +20,33 @@
         const x = r * Math.cos(a);
         const y = r * Math.sin(a);
 
-        const color = `hsl(${Math.random() * 360}, 40%, 60%)`;
+        nodes.push({
+            index: i,
+            title: `Node #${i}`,
+            color: `hsl(${Math.random() * 360}, 40%, 60%)`,
+            x: Math.round(x / 32) * 32,
+            y: Math.round(y / 32) * 32,
+            z: i,
+        });
+    }
 
-        nodes.push({ title: `Node #${i}`, x, y, color });
+    function front(node: any) {
+        node.z = Math.max(...nodes.map((n) => n.z)) + 1;
+        nodes = nodes;
     }
 </script>
 
 <div class="app">
     <Editor>
-        {#each nodes as node}
-            <Node {...node} />
+        {#each nodes as node (node.index)}
+            <Node
+                title={node.title}
+                color={node.color}
+                z={node.z}
+                bind:x={node.x}
+                bind:y={node.y}
+                on:pointerdown={() => front(node)}
+            />
         {/each}
     </Editor>
 
