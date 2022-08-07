@@ -1,23 +1,21 @@
 import { writable, type Writable } from "svelte/store";
 
-type Pointer = PointerEvent;
+const pointers = new Map<number | undefined, PointerEvent>();
+const pointerStores = new Map<number | undefined, Writable<PointerEvent>>();
 
-const pointers = new Map<number | undefined, Pointer>();
-const pointerStores = new Map<number | undefined, Writable<Pointer>>();
+function set(event: PointerEvent) {
+    pointers.set(event.pointerId, event);
 
-function set(pointer: Pointer) {
-    pointers.set(pointer.pointerId, pointer);
-
-    if (pointerStores.has(pointer.pointerId)) {
-        pointerStores.get(pointer.pointerId)!.set(pointer);
+    if (pointerStores.has(event.pointerId)) {
+        pointerStores.get(event.pointerId)!.set(event);
     } else {
-        pointerStores.set(pointer.pointerId, writable(pointer));
+        pointerStores.set(event.pointerId, writable(event));
     }
 }
 
-function unset(pointer: Pointer) {
-    pointerStores.delete(pointer.pointerId);
-    pointers.delete(pointer.pointerId);
+function unset(event: PointerEvent) {
+    pointerStores.delete(event.pointerId);
+    pointers.delete(event.pointerId);
 }
 
 export default {
@@ -39,11 +37,11 @@ export default {
             centerY: y / pointers.size,
         };
     },
-    get(id: number): Promise<Writable<Pointer> | undefined> {
+    get(id: number): Promise<Writable<PointerEvent> | undefined> {
         return new Promise((resolve) => requestAnimationFrame(() => resolve(pointerStores.get(id))));
     },
 };
 
-document.addEventListener("pointerdown", (e) => set(e), { capture: true });
-document.addEventListener("pointermove", (e) => set(e));
-document.addEventListener("pointerup", (e) => unset(e));
+document.addEventListener("pointerdown", (event) => set(event), { capture: true });
+document.addEventListener("pointermove", (event) => set(event));
+document.addEventListener("pointerup", (event) => unset(event));
