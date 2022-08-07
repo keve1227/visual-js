@@ -6,7 +6,8 @@
 
 <div class="app">
     <Editor>
-        <Node title="Nice Shirt" />
+        <Node title="Nice Shirt" x={-100} y={-50} />
+        <Node title="Nice Shorts" x={100} y={50} />
     </Editor>
 
     <ContextMenu bind:contextMenu={$main} />

@@ -8,7 +8,6 @@
 
     const emit = createEventDispatcher();
 
-    export const id = Symbol();
     export let icon: IconName | IconLookup = faCircleNodes;
     export let title = "Untitled";
     export let color = "#46e9a6";
@@ -43,8 +42,8 @@
         if (!e.viewportEvent) return;
         if (e.pointerType === "mouse" && e.buttons !== 1) return;
 
-        let _viewportX: number = e.viewportX;
-        let _viewportY: number = e.viewportY;
+        let _viewportX = e.viewportX;
+        let _viewportY = e.viewportY;
 
         const pointer = await pointers.get(e.pointerId);
         pointer?.subscribe((e: PointerEvent & ViewportMouseEvent) => {
