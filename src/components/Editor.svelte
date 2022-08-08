@@ -39,7 +39,10 @@
     export let y = 0;
     export let scale = 1;
 
-    $: gridOffset = `${clientWidth / 2 + x * scale}px ${clientHeight / 2 + y * scale}px`;
+    $: gridOffset = {
+        x: clientWidth / 2 + x * scale,
+        y: clientHeight / 2 + y * scale,
+    };
 
     export function pan(deltaX: number, deltaY: number) {
         x += deltaX;
@@ -163,7 +166,7 @@
     on:pointerdown={pointerdown}
     on:wheel={wheel}
     style:--svg-grid="url({svgGrid})"
-    style:--grid-offset={gridOffset}
+    style:--grid-offset="{gridOffset.x}px {gridOffset.y}px"
     style:--grid-scale="{gridScale * scale}px"
 >
     <div class="view" style:transform="scale({scale}) translate({x}px, {y}px)">

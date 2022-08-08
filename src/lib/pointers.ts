@@ -16,8 +16,8 @@ export function truePointerEventPolyfill(event: PointerEvent): asserts event is 
     let trueMovementY = 0;
 
     if (lastEvent) {
-        trueMovementX = event.screenX - lastEvent.screenX;
-        trueMovementY = event.screenY - lastEvent.screenY;
+        trueMovementX = event.clientX - lastEvent.clientX;
+        trueMovementY = event.clientY - lastEvent.clientY;
     }
 
     Object.defineProperties(event, {

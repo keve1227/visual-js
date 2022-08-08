@@ -4,7 +4,7 @@
     import Node from "@/components/Node.svelte";
 
     interface NodeDefinition {
-        index: number;
+        id: symbol;
         title: string;
         color: string;
         x: number;
@@ -12,7 +12,7 @@
         z: number;
     }
 
-    let nodes: NodeDefinition[] = [];
+    const nodes: NodeDefinition[] = [];
 
     for (let i = 0; i < 100; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -21,7 +21,7 @@
         const y = r * Math.sin(a);
 
         nodes.push({
-            index: i,
+            id: Symbol(),
             title: `Node #${i}`,
             color: `hsl(${Math.random() * 360}, 40%, 60%)`,
             x: Math.round(x / 32) * 32,
@@ -30,22 +30,23 @@
         });
     }
 
-    function front(node: any) {
-        node.z = Math.max(...nodes.map((n) => n.z)) + 1;
-        nodes = nodes;
+    function front(i: number) {
+        if (i >= 0 && i < nodes.length) {
+            nodes[i].z = Math.max(...nodes.map((n) => n.z)) + 1;
+        }
     }
 </script>
 
 <div class="app">
     <Editor>
-        {#each nodes as node (node.index)}
+        {#each nodes as node, i (node.id)}
             <Node
                 title={node.title}
                 color={node.color}
                 z={node.z}
                 bind:x={node.x}
                 bind:y={node.y}
-                on:pointerdown={() => front(node)}
+                on:pointerdown={() => front(i)}
             />
         {/each}
     </Editor>

@@ -2,8 +2,11 @@
     import { icon as _icon, type IconName, type IconLookup } from "@fortawesome/fontawesome-svg-core";
     import { faCircleNodes, faAngleDown, faAngleUp } from "@fortawesome/free-solid-svg-icons";
 
+    import { spring } from "svelte/motion";
     import pointers from "@/lib/pointers";
     import { assertViewportPointerEvent } from "./Editor.svelte";
+
+    let gridAligned = false;
 
     export let icon: IconName | IconLookup = faCircleNodes;
     export let title = "Untitled";
@@ -13,6 +16,9 @@
     export let x = 0;
     export let y = 0;
     export let z = 0;
+
+    const smoothPosition = spring({ x, y }, { stiffness: 0.1, damping: 0.25 });
+    $: smoothPosition.set({ x, y });
 
     function toggle() {
         open = !open;
@@ -38,6 +44,13 @@
             const deltaX = e2.viewportX - e1.viewportX;
             const deltaY = e2.viewportY - e1.viewportY;
 
+            // Prevent accidental movement of the node
+            if (gridAligned && Math.max(Math.abs(deltaX), Math.abs(deltaY)) < e2.gridScale / 2) {
+                return;
+            } else {
+                gridAligned = false;
+            }
+
             const movedX = startX + deltaX;
             const movedY = startY + deltaY;
 
@@ -45,6 +58,10 @@
                 // Grid snapping
                 x = Math.round(movedX / e2.gridScale) * e2.gridScale;
                 y = Math.round(movedY / e2.gridScale) * e2.gridScale;
+
+                if (e2.ending) {
+                    gridAligned = true;
+                }
             } else {
                 x = movedX;
                 y = movedY;
@@ -55,7 +72,7 @@
 
 <div
     class="node"
-    style:transform="translate({x}px, {y}px)"
+    style:transform="translate({$smoothPosition.x}px, {$smoothPosition.y}px)"
     style:background-color={color}
     style:z-index={z}
     on:pointerdown={node_pointerdown}
