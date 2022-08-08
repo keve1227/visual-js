@@ -9,8 +9,6 @@ const contextMenuItems = {
 
 type ContextMenuItems = typeof contextMenuItems;
 
-type Difference<A, B> = { [K in Exclude<keyof A, keyof B>]: A[K] };
-
 export type ContextMenuItemType = keyof ContextMenuItems;
 
 type ContextMenuItem<T extends ContextMenuItemType> = InstanceType<ContextMenuItems[T]>;

@@ -1,29 +1,49 @@
 <script context="module" lang="ts">
-    export type ViewportMouseEvent =
-        | { viewportEvent?: false }
-        | {
-              viewportEvent: true;
-              editorX: number;
-              editorY: number;
-              viewportX: number;
-              viewportY: number;
-          };
+    export interface ViewportPointerEvent extends PointerEvent {
+        readonly viewportEvent: true;
+
+        readonly target: HTMLElement;
+        readonly ending: boolean;
+
+        readonly gridScale: number;
+
+        readonly editorX: number;
+        readonly editorY: number;
+
+        readonly viewportX: number;
+        readonly viewportY: number;
+
+        readonly deltaX: number;
+        readonly deltaY: number;
+    }
+
+    export function assertViewportPointerEvent(event: any): asserts event is ViewportPointerEvent {
+        if (event == null || typeof event !== "object" || !event.viewportEvent) {
+            throw new TypeError("Expected event to be a ViewportMouseEvent");
+        }
+    }
 </script>
 
 <script lang="ts">
-    import pointers from "@/lib/pointers";
+    import pointers, { truePointerEventPolyfill } from "@/lib/pointers";
+    import svgGrid from "@/images/grid.svg";
 
     let element: HTMLElement;
+    let clientWidth: number;
+    let clientHeight: number;
 
     export let zoomSpeed = 0.0025;
+    export let gridScale = 32;
 
     export let x = 0;
     export let y = 0;
     export let scale = 1;
 
+    $: gridOffset = `${clientWidth / 2 + x * scale}px ${clientHeight / 2 + y * scale}px`;
+
     export function pan(deltaX: number, deltaY: number) {
-        x += deltaX / scale;
-        y += deltaY / scale;
+        x += deltaX;
+        y += deltaY;
     }
 
     export function zoom(delta: number, originX = 0, originY = 0) {
@@ -59,15 +79,15 @@
 
     export function editorToViewportCoordinates(editorX: number, editorY: number) {
         return {
-            viewportX: editorX / scale + x,
-            viewportY: editorY / scale + y,
+            viewportX: editorX / scale - x,
+            viewportY: editorY / scale - y,
         };
     }
 
     export function viewportToEditorCoordinates(viewportX: number, viewportY: number) {
         return {
-            editorX: (viewportX - x) * scale,
-            editorY: (viewportY - y) * scale,
+            editorX: (viewportX + x) * scale,
+            editorY: (viewportY + y) * scale,
         };
     }
 
@@ -81,32 +101,25 @@
         return editorToClientCoordinates(editorX, editorY);
     }
 
-    async function pointerdown(e: PointerEvent) {
+    function pointerdown(e: PointerEvent) {
         if (e.pointerType === "mouse" && e.buttons !== 4) return;
 
-        let { clientX: _clientX, clientY: _clientY } = e;
+        pointers.subscribe(e.pointerId, (e) => {
+            assertViewportPointerEvent(e);
 
-        const pointer = await pointers.get(e.pointerId);
-        pointer?.subscribe(({ clientX, clientY }) => {
-            const deltaX = clientX - _clientX;
-            const deltaY = clientY - _clientY;
-            _clientX = clientX;
-            _clientY = clientY;
-
-            pan(deltaX / pointers.count, deltaY / pointers.count);
+            pan(e.deltaX / pointers.count, e.deltaY / pointers.count);
 
             if (pointers.count > 1) {
-                const { centerX, centerY } = pointers.center;
+                const { x: centerX, y: centerY } = pointers.getCenter();
 
-                const offsetX = clientX - centerX;
-                const offsetY = clientY - centerY;
-
+                const offsetX = e.clientX - centerX;
+                const offsetY = e.clientY - centerY;
                 const centerDistance = Math.hypot(offsetX, offsetY);
 
                 const normalX = offsetX / centerDistance;
                 const normalY = offsetY / centerDistance;
 
-                const delta = deltaX * normalX + deltaY * normalY;
+                const delta = e.trueMovementX * normalX + e.trueMovementY * normalY;
                 zoom(delta * zoomSpeed, centerX, centerY);
             }
         });
@@ -116,33 +129,58 @@
         zoom(-e.deltaY * zoomSpeed, e.clientX, e.clientY);
     }
 
-    function pointerEvent(e: PointerEvent & ViewportMouseEvent) {
+    function capturePointerEvent(e: PointerEvent) {
+        truePointerEventPolyfill(e);
+
         const { editorX, editorY } = clientToEditorCoordinates(e.clientX, e.clientY);
         const { viewportX, viewportY } = editorToViewportCoordinates(editorX, editorY);
 
         Object.defineProperties(e, {
-            viewportEvent: { value: true },
-            editorX: { value: editorX },
-            editorY: { value: editorY },
-            viewportX: { value: viewportX },
-            viewportY: { value: viewportY },
+            viewportEvent: { value: true, writable: false },
+            ending: {
+                get: () => e.type.endsWith("up") || e.type.endsWith("cancel"),
+            },
+
+            gridScale: { value: gridScale, writable: false },
+
+            editorX: { value: editorX, writable: false },
+            editorY: { value: editorY, writable: false },
+
+            viewportX: { value: viewportX, writable: false },
+            viewportY: { value: viewportY, writable: false },
+
+            deltaX: { value: e.trueMovementX / scale, writable: false },
+            deltaY: { value: e.trueMovementY / scale, writable: false },
         });
     }
 </script>
 
 <div
-    bind:this={element}
     class="editor"
+    bind:this={element}
+    bind:clientWidth
+    bind:clientHeight
     on:pointerdown={pointerdown}
-    on:pointerdown|capture={pointerEvent}
-    on:pointermove|capture={pointerEvent}
-    on:pointerup|capture={pointerEvent}
     on:wheel={wheel}
+    style:--svg-grid="url({svgGrid})"
+    style:--grid-offset={gridOffset}
+    style:--grid-scale="{gridScale * scale}px"
 >
     <div class="view" style:transform="scale({scale}) translate({x}px, {y}px)">
         <slot {scale} />
     </div>
 </div>
+
+<svelte:window
+    on:pointerdown|capture={capturePointerEvent}
+    on:pointermove|capture={capturePointerEvent}
+    on:pointerup|capture={capturePointerEvent}
+    on:pointercancel|capture={capturePointerEvent}
+    on:pointerleave|capture={capturePointerEvent}
+    on:pointerover|capture={capturePointerEvent}
+    on:pointerout|capture={capturePointerEvent}
+    on:pointerenter|capture={capturePointerEvent}
+/>
 
 <style lang="scss">
     .editor {
@@ -153,6 +191,24 @@
         flex: 1;
         user-select: none;
         overflow: hidden;
+
+        &::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            pointer-events: none;
+
+            background-image: var(--svg-grid);
+            background-position: var(--grid-offset);
+            background-size: var(--grid-scale);
+            background-repeat: repeat;
+            background-attachment: local;
+            mix-blend-mode: overlay;
+        }
     }
 
     .view {

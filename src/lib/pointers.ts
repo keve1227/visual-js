@@ -1,47 +1,98 @@
 import { writable, type Writable } from "svelte/store";
 
-const pointers = new Map<number | undefined, PointerEvent>();
-const pointerStores = new Map<number | undefined, Writable<PointerEvent>>();
+type Subscriber<T> = (value: T) => void;
+type Invalidator<T> = (value?: T) => void;
+
+export interface TruePointerEvent extends PointerEvent {
+    readonly trueMovementX: number;
+    readonly trueMovementY: number;
+    isLocal: boolean;
+}
+
+export function truePointerEventPolyfill(event: PointerEvent): asserts event is TruePointerEvent {
+    const lastEvent = pointers.get(event.pointerId);
+
+    let trueMovementX = 0;
+    let trueMovementY = 0;
+
+    if (lastEvent) {
+        trueMovementX = event.screenX - lastEvent.screenX;
+        trueMovementY = event.screenY - lastEvent.screenY;
+    }
+
+    Object.defineProperties(event, {
+        trueMovementX: { value: trueMovementX, writable: false },
+        trueMovementY: { value: trueMovementY, writable: false },
+        isLocal: { value: false, writable: true },
+    });
+}
+
+const values = new Map<number, TruePointerEvent>();
+const stores = new Map<number, Writable<TruePointerEvent>>();
+
+function add(event: PointerEvent) {
+    truePointerEventPolyfill(event);
+
+    values.set(event.pointerId, event);
+    stores.set(event.pointerId, writable(event));
+}
 
 function set(event: PointerEvent) {
-    pointers.set(event.pointerId, event);
+    truePointerEventPolyfill(event);
 
-    if (pointerStores.has(event.pointerId)) {
-        pointerStores.get(event.pointerId)!.set(event);
+    if (stores.has(event.pointerId)) {
+        const lastEvent = values.get(event.pointerId)!;
+        event.isLocal = lastEvent.isLocal;
+
+        values.set(event.pointerId, event);
+        stores.get(event.pointerId)!.set(event);
     } else {
-        pointerStores.set(event.pointerId, writable(event));
+        add(event);
     }
 }
 
-function unset(event: PointerEvent) {
-    pointerStores.delete(event.pointerId);
-    pointers.delete(event.pointerId);
+function remove(event: PointerEvent) {
+    set(event);
+
+    requestAnimationFrame(() => {
+        values.delete(event.pointerId);
+        stores.delete(event.pointerId);
+    });
 }
 
-export default {
-    get count() {
-        return pointers.size;
+const pointers = {
+    get values() {
+        return [...values.values()].filter((e) => !e.isLocal);
     },
-    get center() {
+    get count() {
+        return pointers.values.length;
+    },
+    get(id: number): TruePointerEvent | undefined {
+        return values.get(id);
+    },
+    subscribe(id: number, run: Subscriber<TruePointerEvent>, invalidate?: Invalidator<TruePointerEvent>) {
+        return stores.get(id)?.subscribe(run, invalidate) ?? (() => {});
+    },
+    getCenter() {
         let x = 0;
         let y = 0;
 
-        for (const pointer of pointers.values()) {
-            const { clientX, clientY } = pointer;
-            x += clientX;
-            y += clientY;
+        for (const event of pointers.values) {
+            x += event.clientX;
+            y += event.clientY;
         }
 
         return {
-            centerX: x / pointers.size,
-            centerY: y / pointers.size,
+            x: x / values.size,
+            y: y / values.size,
         };
-    },
-    get(id: number): Promise<Writable<PointerEvent> | undefined> {
-        return new Promise((resolve) => requestAnimationFrame(() => resolve(pointerStores.get(id))));
     },
 };
 
+export default pointers;
+
+// PointerEvent handlers
 document.addEventListener("pointerdown", (event) => set(event), { capture: true });
-document.addEventListener("pointermove", (event) => set(event));
-document.addEventListener("pointerup", (event) => unset(event));
+document.addEventListener("pointermove", (event) => set(event), { capture: true });
+document.addEventListener("pointerup", (event) => remove(event), { capture: true });
+document.addEventListener("pointercancel", (event) => remove(event), { capture: true });
